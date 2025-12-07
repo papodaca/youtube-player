@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+@theme {
+  --color-twitch: #9146FF;
+  --color-youtube: #FF0033;
+}
