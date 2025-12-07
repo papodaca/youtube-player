@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Twitch YouTube Player</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
+  <link href="https://cdn.jsdelivr.net/npm/lucide-static@0.556.0/font/lucide.min.css" rel="stylesheet">
+  <script type="importmap">
+    {"imports": {
+      "@hotwired/stimulus": "https://cdn.jsdelivr.net/npm/@hotwired/stimulus@3.2.2/+esm",
+      "tmi.js": "https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/+esm"
+    }}</script>
+  <script src="./app.js" type="module"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            twitch: '#9146FF',
+            youtube: '#FF0000'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .fullscreen-mode {
+      width: 100vw !important;
+      height: 100vh !important;
+      max-width: none !important;
+      max-height: none !important;
+      aspect-ratio: unset !important;
+    }
+
+    /* Hide scrollbar in fullscreen */
+    :fullscreen {
+      overflow: hidden;
+    }
+
+    /* Webkit browsers */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #1f2937;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #4b5563;
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #6b7280;
+    }
+
+    /* Progress bar styling */
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .slider::-webkit-slider-track {
+      background: #374151;
+      height: 8px;
+      border-radius: 4px;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      background: #9146FF;
+      height: 16px;
+      width: 16px;
+      border-radius: 50%;
+      margin-top: -4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      background: #b374ff;
+      transform: scale(1.2);
+    }
+
+    .slider::-moz-range-track {
+      background: #374151;
+      height: 8px;
+      border-radius: 4px;
+    }
+
+    .slider::-moz-range-thumb {
+      background: #9146FF;
+      height: 16px;
+      width: 16px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .slider::-moz-range-thumb:hover {
+      background: #b374ff;
+      transform: scale(1.2);
+    }
+  </style>
+</head>
+
+<body class="bg-gray-900 text-white min-h-screen">
+  <div data-controller="youtube-player" data-youtube-player-channel-name-value="your_channel_name"
+    class="container mx-auto px-4 py-8">
+
+    <!-- Header -->
+    <header class="mb-8">
+      <h1
+        class="text-4xl font-bold text-center mb-2 bg-gradient-to-r from-twitch to-youtube bg-clip-text text-transparent">
+        Twitch YouTube Player
+      </h1>
+      <p class="text-center text-gray-400">Connect to Twitch chat and automatically play YouTube links</p>
+    </header>
+
+    <!-- Connection Status -->
+    <div class="mb-6">
+      <div class="bg-gray-800 rounded-lg p-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">Twitch Channel</label>
+              <input type="text" data-youtube-player-target="channelInput"
+                class="bg-gray-700 text-white px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-twitch"
+                placeholder="Enter channel name">
+            </div>
+            <button data-action="click->youtube-player#connectToChannel"
+              class="bg-twitch hover:bg-purple-700 text-white px-4 py-2 rounded-md transition-colors mt-6">
+              Connect
+            </button>
+            <div>
+              <label class="block text-sm font-medium text-gray-300 mb-1">Add YouTube Link</label>
+              <div class="flex space-x-2">
+                <input type="text" data-youtube-player-target="youtubeLinkInput"
+                  class="bg-gray-700 text-white px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-youtube"
+                  placeholder="youtube.com/watch?v=...">
+                <button data-action="click->youtube-player#addYoutubeLink"
+                  class="bg-youtube hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors">
+                  Add
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center space-x-4">
+            <button data-action="click->youtube-player#reset"
+              class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors">
+              <div class="flex items-center space-x-2">
+                <i class="icon-rotate-ccw"></i>
+                <span>Reset</span>
+              </div>
+            </button>
+            <div class="flex items-center space-x-2">
+              <span class="text-sm text-gray-400">Status:</span>
+              <span data-youtube-player-target="connectionStatus"
+                class="px-2 py-1 rounded text-sm font-medium bg-gray-700 text-gray-300">
+                Disconnected
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Player Section -->
+      <div class="lg:col-span-2">
+        <div class="bg-gray-800 rounded-lg p-6">
+          <!-- YouTube Player -->
+          <div class="mb-4">
+            <div id="player" class="w-full aspect-video bg-black rounded-lg"></div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="mb-4">
+            <div class="flex items-center space-x-3">
+              <span data-youtube-player-target="currentTime" class="text-sm text-gray-400 min-w-[45px]">0:00</span>
+              <div class="flex-1 relative">
+                <input type="range" data-youtube-player-target="progressBar" data-action="input->youtube-player#seekTo"
+                  min="0" max="100" value="0"
+                  class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer slider">
+              </div>
+              <span data-youtube-player-target="duration" class="text-sm text-gray-400 min-w-[45px]">0:00</span>
+            </div>
+          </div>
+
+          <!-- Player Controls -->
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center space-x-2">
+              <button data-action="click->youtube-player#togglePlay"
+                class="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-md transition-colors">
+                <div data-youtube-player-target="playPauseIcon" class="icon-play w-5 h-5"></div>
+              </button>
+              <button data-action="click->youtube-player#previous"
+                class="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-md transition-colors">
+                <div class="icon-skip-back w-5 h-5"></div>
+              </button>
+              <button data-action="click->youtube-player#next"
+                class="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-md transition-colors">
+                <div class="icon-skip-forward w-5 h-5"></div>
+              </button>
+              <button data-action="click->youtube-player#stop"
+                class="bg-red-600 hover:bg-red-700 text-white p-2 rounded-md transition-colors">
+                <div class="icon-square w-5 h-5"></div>
+              </button>
+              <button data-action="click->youtube-player#toggleFullscreen"
+                class="bg-gray-700 hover:bg-gray-600 text-white p-2 rounded-md transition-colors">
+                <div class="icon-maximize w-5 h-5"></div>
+              </button>
+            </div>
+
+            <div class="flex items-center space-x-4">
+              <!-- Volume Control -->
+              <div class="flex items-center space-x-2">
+                <div class="icon-volume-2 w-5 h-5 text-gray-400"></div>
+                <input type="range" data-youtube-player-target="volumeSlider"
+                  data-action="input->youtube-player#changeVolume" min="0" max="100" value="50"
+                  class="w-20 h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+              </div>
+
+              <!-- Autoplay Toggle -->
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input type="checkbox" data-youtube-player-target="autoplayToggle"
+                  data-action="change->youtube-player#toggleAutoplay" class="sr-only peer">
+                <div
+                  class="relative w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-twitch">
+                </div>
+                <span class="text-sm text-gray-300">Autoplay</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Current Video Info -->
+          <div data-youtube-player-target="currentVideoInfo" class="bg-gray-700 rounded-lg p-4 mb-4 hidden">
+            <h3 class="font-semibold mb-2">Now Playing</h3>
+            <div class="flex items-center space-x-4">
+              <img data-youtube-player-target="currentThumbnail" src="" alt="" class="w-24 h-18 rounded">
+              <div>
+                <h4 data-youtube-player-target="currentTitle" class="font-medium"></h4>
+                <p data-youtube-player-target="currentChannel" class="text-sm text-gray-400"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Queue Section -->
+      <div class="lg:col-span-1">
+        <div class="bg-gray-800 rounded-lg p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold">Queue</h2>
+            <div class="flex items-center space-x-2">
+              <span data-youtube-player-target="queueCount" class="text-sm text-gray-400">0 items</span>
+              <button data-action="click->youtube-player#clearQueue" class="text-red-400 hover:text-red-300 text-sm">
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div data-youtube-player-target="queueList" class="space-y-2 max-h-96 overflow-y-auto">
+            <!-- Queue items will be inserted here -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>
