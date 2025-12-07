@@ -4,14 +4,15 @@ import tmi from "tmi.js";
 export default class extends Controller {
   static targets = [
     "player", "queueList", "channelInput", "connectionStatus",
-    "playPauseIcon", "volumeSlider", "autoplayToggle", "currentVideoInfo",
+    "playPauseIcon", "volumeSlider", "volumeIcon", "autoplayToggle", "currentVideoInfo",
     "currentThumbnail", "currentTitle", "currentChannel", "queueCount",
-    "progressBar", "currentTime", "duration", "youtubeLinkInput", "queueItem"
+    "progressBar", "currentTime", "duration", "youtubeLinkInput", "queueItem", "preservePlaylistToggle"
   ]
 
   static values = {
     channelName: String,
-    autoplay: { type: Boolean, default: false }
+    autoplay: { type: Boolean, default: false },
+    preservePlaylist: { type: Boolean, default: false }
   }
 
   connect() {
@@ -20,7 +21,11 @@ export default class extends Controller {
     this.isConnected = false
     this.client = null
     this.autoplay = this.autoplayValue
+    this.preservePlaylist = this.preservePlaylistValue
     this.progressInterval = null
+    this.currentVideoIndex = null
+    this.isMuted = false
+    this.previousVolume = 50
     this.loadState()
     this.setupPlayer()
     this.updateConnectionStatus()
@@ -71,6 +76,12 @@ export default class extends Controller {
     if (this.currentVideo) {
       event.target.cueVideoById(this.currentVideo.videoId)
     }
+
+    // Update queue display to ensure current video decoration is shown
+    this.updateQueueDisplay()
+
+    // Update volume icon based on current state
+    this.updateVolumeIcon()
 
     // Start progress tracking
     this.startProgressTracking();
@@ -202,31 +213,35 @@ export default class extends Controller {
       return
     }
 
-    this.queueListTarget.innerHTML = this.queue.map((item, index) => `
-      <div class="bg-gray-700 rounded-lg p-3 flex items-center space-x-3 group hover:bg-gray-600 transition-colors cursor-move"
-           data-youtube-player-target="queueItem"
-           data-index="${index}"
-           draggable="true">
-        <div class="icon-grip-vertical w-4 h-4 text-gray-500"></div>
-        <a href="https://www.youtube.com/watch?v=${item.videoId}"
-           target="_blank"
-           rel="noopener noreferrer"
-           class="block w-16 h-12 rounded overflow-hidden hover:ring-2 hover:ring-twitch transition-all"
-           title="Open video in new tab">
-          <img src="${item.thumbnail}" alt="${item.title}" class="w-full h-full object-cover">
-        </a>
-        <div class="flex-1 min-w-0">
-          <h4 class="font-medium text-sm truncate">${item.title}</h4>
-          <p class="text-xs text-gray-400">${item.channel}</p>
-          ${item.username ? `<p class="text-xs text-twitch">Added by ${item.username}</p>` : ''}
+    this.queueListTarget.innerHTML = this.queue.map((item, index) => {
+      const isCurrentVideo = this.preservePlaylist && this.currentVideoIndex === index
+      return `
+        <div class="bg-gray-700 rounded-lg p-3 flex items-center space-x-3 group hover:bg-gray-600 transition-colors cursor-move ${isCurrentVideo ? 'ring-2 ring-green-500 ring-inset' : ''}"
+             data-youtube-player-target="queueItem"
+             data-index="${index}"
+             draggable="true">
+          <div class="icon-grip-vertical w-4 h-4 text-gray-500"></div>
+          <a href="https://www.youtube.com/watch?v=${item.videoId}"
+             target="_blank"
+             rel="noopener noreferrer"
+             class="block w-16 h-12 rounded overflow-hidden hover:ring-2 hover:ring-twitch transition-all"
+             title="Open video in new tab">
+            <img src="${item.thumbnail}" alt="${item.title}" class="w-full h-full object-cover">
+          </a>
+          <div class="flex-1 min-w-0">
+            <h4 class="font-medium text-sm truncate ${isCurrentVideo ? 'text-green-400' : ''}">${item.title}</h4>
+            <p class="text-xs text-gray-400">${item.channel}</p>
+            ${item.username ? `<p class="text-xs text-twitch">Added by ${item.username}</p>` : ''}
+            ${isCurrentVideo ? '<p class="text-xs text-green-400">▶ Currently Playing</p>' : ''}
+          </div>
+          <button data-action="click->youtube-player#removeFromQueue"
+                  data-index="${index}"
+                  class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity">
+            <div class="icon-x w-5 h-5"></div>
+          </button>
         </div>
-        <button data-action="click->youtube-player#removeFromQueue"
-                data-index="${index}"
-                class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity">
-          <div class="icon-x w-5 h-5"></div>
-        </button>
-      </div>
-    `).join('')
+      `
+    }).join('')
 
     // Add event listeners to queue items since they're dynamically created
     this.queueItemTargets.forEach(item => {
@@ -240,11 +255,25 @@ export default class extends Controller {
   playNext(manual = false) {
     if (this.queue.length === 0) {
       this.currentVideo = null
+      this.currentVideoIndex = null
       this.currentVideoInfoTarget.classList.add('hidden')
       return
     }
 
-    this.currentVideo = this.queue.shift()
+    if (this.preservePlaylist) {
+      // Preserve playlist mode - move to next item without removing from queue
+      if (this.currentVideoIndex !== null) {
+        this.currentVideoIndex = (this.currentVideoIndex + 1) % this.queue.length
+      } else {
+        this.currentVideoIndex = 0
+      }
+      this.currentVideo = this.queue[this.currentVideoIndex]
+    } else {
+      // Normal mode - remove current video from queue
+      this.currentVideo = this.queue.shift()
+      this.currentVideoIndex = null
+    }
+
     this.updateQueueDisplay()
     this.updateCurrentVideoDisplay()
     this.saveState()
@@ -260,10 +289,28 @@ export default class extends Controller {
     }
   }
 
-  playPrevious() {
-    // Note: YouTube iframe API doesn't provide a built-in previous functionality
-    // This would require maintaining a history of played videos
-    this.showInfo('Previous functionality not implemented yet')
+  previous() {
+    if (!this.player) return
+
+    if (this.preservePlaylist && this.queue.length > 0) {
+      // In preserve mode, go to previous video in queue
+      if (this.currentVideoIndex === null) {
+        this.currentVideoIndex = 0
+      } else {
+        this.currentVideoIndex = this.currentVideoIndex === 0 ? this.queue.length - 1 : this.currentVideoIndex - 1
+      }
+      this.currentVideo = this.queue[this.currentVideoIndex]
+
+      this.updateQueueDisplay()
+      this.updateCurrentVideoDisplay()
+      this.saveState()
+
+      // Load and play the previous video
+      this.player.loadVideoById(this.currentVideo.videoId)
+    } else {
+      // In normal mode, we don't have a history of played videos
+      this.showInfo('Previous functionality only available in preserve playlist mode')
+    }
   }
 
   next() {
@@ -355,12 +402,69 @@ export default class extends Controller {
     if (!this.player) return
     const volume = this.volumeSliderTarget.value
     this.player.setVolume(volume)
+
+    // Update mute state and icon
+    if (volume > 0 && this.isMuted) {
+      this.isMuted = false
+    }
+    this.previousVolume = volume
+    this.updateVolumeIcon()
     this.saveState()
+  }
+
+  toggleMute() {
+    if (!this.player) return
+
+    if (this.isMuted) {
+      // Unmute - restore previous volume
+      this.player.unMute()
+      this.volumeSliderTarget.value = this.previousVolume
+      this.player.setVolume(this.previousVolume)
+      this.isMuted = false
+    } else {
+      // Mute - save current volume and mute
+      this.previousVolume = this.volumeSliderTarget.value
+      this.player.mute()
+      this.volumeSliderTarget.value = 0
+      this.isMuted = true
+    }
+
+    this.updateVolumeIcon()
+    this.saveState()
+  }
+
+  updateVolumeIcon() {
+    const volume = this.volumeSliderTarget.value
+    let iconClass = 'icon-volume-2'
+
+    if (this.isMuted || volume == 0) {
+      iconClass = 'icon-volume-x'
+    } else if (volume < 50) {
+      iconClass = 'icon-volume-1'
+    } else {
+      iconClass = 'icon-volume-2'
+    }
+
+    this.volumeIconTarget.className = `${iconClass} w-5 h-5 text-gray-400 cursor-pointer hover:text-white transition-colors`
   }
 
   toggleAutoplay() {
     this.autoplay = this.autoplayToggleTarget.checked
     this.saveState()
+  }
+
+  togglePreservePlaylist() {
+    this.preservePlaylist = this.preservePlaylistToggleTarget.checked
+    this.saveState()
+
+    // If switching to preserve mode and we have a current video, find its index
+    if (this.preservePlaylist && this.currentVideo) {
+      this.currentVideoIndex = this.queue.findIndex(item => item.videoId === this.currentVideo.videoId)
+    } else {
+      this.currentVideoIndex = null
+    }
+
+    this.updateQueueDisplay()
   }
 
   updateCurrentVideoDisplay() {
@@ -609,6 +713,20 @@ export default class extends Controller {
       this.queue.splice(this.draggedIndex, 1)
       this.queue.splice(dropIndex, 0, draggedItem)
 
+      // Update currentVideoIndex if in preserve playlist mode
+      if (this.preservePlaylist && this.currentVideoIndex !== null) {
+        if (this.draggedIndex === this.currentVideoIndex) {
+          // The currently playing item was dragged - update its index to the new position
+          this.currentVideoIndex = dropIndex
+        } else if (this.draggedIndex < this.currentVideoIndex && dropIndex >= this.currentVideoIndex) {
+          // An item before current was dragged after current - current index shifts down
+          this.currentVideoIndex--
+        } else if (this.draggedIndex > this.currentVideoIndex && dropIndex <= this.currentVideoIndex) {
+          // An item after current was dragged before current - current index shifts up
+          this.currentVideoIndex++
+        }
+      }
+
       this.updateQueueDisplay()
       this.saveState() // Save the reordered queue to local storage
     }
@@ -637,9 +755,13 @@ export default class extends Controller {
     const state = {
       queue: this.queue,
       currentVideo: this.currentVideo,
+      currentVideoIndex: this.currentVideoIndex,
       autoplay: this.autoplay,
+      preservePlaylist: this.preservePlaylist,
       channelName: this.channelNameValue,
-      volume: this.volumeSliderTarget?.value || 50
+      volume: this.volumeSliderTarget?.value || 50,
+      isMuted: this.isMuted,
+      previousVolume: this.previousVolume
     }
     localStorage.setItem('youtubePlayerState', JSON.stringify(state))
   }
@@ -656,9 +778,10 @@ export default class extends Controller {
           this.updateQueueDisplay()
         }
 
-        // Restore current video
+        // Restore current video and index
         if (state.currentVideo) {
           this.currentVideo = state.currentVideo
+          this.currentVideoIndex = state.currentVideoIndex
           this.updateCurrentVideoDisplay()
         }
 
@@ -666,6 +789,12 @@ export default class extends Controller {
         if (typeof state.autoplay === 'boolean') {
           this.autoplay = state.autoplay
           this.autoplayToggleTarget.checked = state.autoplay
+        }
+
+        // Restore preserve playlist setting
+        if (typeof state.preservePlaylist === 'boolean') {
+          this.preservePlaylist = state.preservePlaylist
+          this.preservePlaylistToggleTarget.checked = state.preservePlaylist
         }
 
         // Restore channel name
@@ -677,6 +806,16 @@ export default class extends Controller {
         // Restore volume (will be applied after player is ready)
         if (state.volume) {
           this.savedVolume = state.volume
+        }
+
+        // Restore mute state
+        if (typeof state.isMuted === 'boolean') {
+          this.isMuted = state.isMuted
+        }
+
+        // Restore previous volume
+        if (state.previousVolume) {
+          this.previousVolume = state.previousVolume
         }
       }
     } catch (error) {
