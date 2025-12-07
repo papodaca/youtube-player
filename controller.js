@@ -74,7 +74,7 @@ export default class extends Controller {
 
     // Load current video if it exists
     if (this.currentVideo) {
-      event.target.cueVideoById(this.currentVideo.videoId)
+      event.target.cueVideoById(this.currentVideo.videoId, this.currentVideo.startTime || 0)
     }
 
     // Update queue display to ensure current video decoration is shown
@@ -146,16 +146,14 @@ export default class extends Controller {
   }
 
   processMessage(message, tags) {
-    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/
-    const match = message.match(youtubeRegex)
+    const youtubeUrl = this.extractYoutubeUrl(message)
 
-    if (match) {
-      const videoId = match[1]
-      this.addToQueue(videoId, tags.username)
+    if (youtubeUrl) {
+      this.addToQueueByUrl(youtubeUrl, tags.username)
     }
   }
 
-  async addToQueue(videoId, username = null) {
+  async addToQueue(videoId, username = null, startTime = null) {
     // Check if video already exists in queue
     if (this.queue.some(item => item.videoId === videoId)) {
       return
@@ -169,6 +167,7 @@ export default class extends Controller {
         channel: videoInfo.channel,
         thumbnail: videoInfo.thumbnail,
         username,
+        startTime,
         addedAt: new Date()
       }
 
@@ -188,6 +187,7 @@ export default class extends Controller {
         channel: 'Unknown',
         thumbnail: `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`,
         username,
+        startTime,
         addedAt: new Date()
       })
       this.updateQueueDisplay()
@@ -215,6 +215,7 @@ export default class extends Controller {
 
     this.queueListTarget.innerHTML = this.queue.map((item, index) => {
       const isCurrentVideo = this.preservePlaylist && this.currentVideoIndex === index
+      const startTimeText = item.startTime ? ` @ ${this.formatTime(item.startTime)}` : ''
       return `
         <div class="bg-gray-700 rounded-lg p-3 flex items-center space-x-3 group hover:bg-gray-600 transition-colors cursor-move ${isCurrentVideo ? 'ring-2 ring-green-500 ring-inset' : ''}"
              data-youtube-player-target="queueItem"
@@ -229,7 +230,7 @@ export default class extends Controller {
             <img src="${item.thumbnail}" alt="${item.title}" class="w-full h-full object-cover">
           </a>
           <div class="flex-1 min-w-0">
-            <h4 class="font-medium text-sm truncate ${isCurrentVideo ? 'text-green-400' : ''}">${item.title}</h4>
+            <h4 class="font-medium text-sm truncate ${isCurrentVideo ? 'text-green-400' : ''}">${item.title}${startTimeText}</h4>
             <p class="text-xs text-gray-400">${item.channel}</p>
             ${item.username ? `<p class="text-xs text-twitch">Added by ${item.username}</p>` : ''}
             ${isCurrentVideo ? '<p class="text-xs text-green-400">▶ Currently Playing</p>' : ''}
@@ -281,10 +282,10 @@ export default class extends Controller {
     if (this.player && this.player.loadVideoById) {
       if (manual || this.autoplay) {
         // Manual click or autoplay enabled - use loadVideoById to start playing
-        this.player.loadVideoById(this.currentVideo.videoId)
+        this.player.loadVideoById(this.currentVideo.videoId, this.currentVideo.startTime || 0)
       } else {
         // Autoplay disabled and not manual - use cueVideoById to load but not play
-        this.player.cueVideoById(this.currentVideo.videoId)
+        this.player.cueVideoById(this.currentVideo.videoId, this.currentVideo.startTime || 0)
       }
     }
   }
@@ -306,7 +307,7 @@ export default class extends Controller {
       this.saveState()
 
       // Load and play the previous video
-      this.player.loadVideoById(this.currentVideo.videoId)
+      this.player.loadVideoById(this.currentVideo.videoId, this.currentVideo.startTime || 0)
     } else {
       // In normal mode, we don't have a history of played videos
       this.showInfo('Previous functionality only available in preserve playlist mode')
@@ -511,16 +512,14 @@ export default class extends Controller {
       return
     }
 
-    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/
-    const match = url.match(youtubeRegex)
+    const youtubeUrl = this.extractYoutubeUrl(url)
 
-    if (!match) {
+    if (!youtubeUrl) {
       this.showError('Invalid YouTube URL. Please enter a valid YouTube link.')
       return
     }
 
-    const videoId = match[1]
-    this.addToQueue(videoId, 'Manual')
+    this.addToQueueByUrl(youtubeUrl, 'Manual')
     this.youtubeLinkInputTarget.value = ''
     this.showSuccess('YouTube video added to queue!')
   }
@@ -653,6 +652,76 @@ export default class extends Controller {
     const minutes = Math.floor(seconds / 60)
     const remainingSeconds = Math.floor(seconds % 60)
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
+
+  extractYoutubeUrl(text) {
+    // More specific regex to match YouTube URLs and capture the full URL including parameters
+    // Handle youtu.be URLs separately to ensure proper parameter capture
+    const youtuBeRegex = /(?:https?:\/\/)?(?:www\.)?youtu\.be\/[^"\s]*/g
+    const youtubeComRegex = /(?:https?:\/\/)?(?:www\.)?youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)[^"\s]*/g
+
+    // Try youtu.be first, then youtube.com
+    let matches = text.match(youtuBeRegex)
+    if (!matches) {
+      matches = text.match(youtubeComRegex)
+    }
+
+    if (matches && matches.length > 0) {
+      return matches[0] // Return the first YouTube URL found
+    }
+
+    return null
+  }
+
+  extractVideoId(url) {
+    // Extract video ID from YouTube URL
+    const videoIdRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=|shorts\/)|youtu\.be\/)([^"&?\/\s]{11})/
+    const match = url.match(videoIdRegex)
+
+    return match ? match[1] : null
+  }
+
+  extractStartTime(url) {
+    // Extract timestamp from URL parameters
+    const urlObj = new URL(url, 'http://example.com')
+    const tParam = urlObj.searchParams.get('t')
+
+    if (!tParam) return null
+
+    // Handle different timestamp formats (e.g., "177", "2m57s", "2m", "57s")
+    const secondsMatch = tParam.match(/^(\d+)$/)
+    if (secondsMatch) {
+      return parseInt(secondsMatch[1])
+    }
+
+    const minutesSecondsMatch = tParam.match(/^(\d+)m(\d+)s?$/)
+    if (minutesSecondsMatch) {
+      return parseInt(minutesSecondsMatch[1]) * 60 + parseInt(minutesSecondsMatch[2])
+    }
+
+    const minutesMatch = tParam.match(/^(\d+)m$/)
+    if (minutesMatch) {
+      return parseInt(minutesMatch[1]) * 60
+    }
+
+    const secondsOnlyMatch = tParam.match(/^(\d+)s$/)
+    if (secondsOnlyMatch) {
+      return parseInt(secondsOnlyMatch[1])
+    }
+
+    return null
+  }
+
+  async addToQueueByUrl(url, username = null) {
+    const videoId = this.extractVideoId(url)
+
+    if (!videoId) {
+      this.showError('Could not extract video ID from URL')
+      return
+    }
+
+    const startTime = this.extractStartTime(url)
+    this.addToQueue(videoId, username, startTime)
   }
 
   dragStart(event) {
