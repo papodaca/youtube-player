@@ -233,7 +233,7 @@
               <!-- Preserve Playlist Toggle -->
               <label class="flex items-center space-x-2 cursor-pointer">
                 <input type="checkbox" data-youtube-player-target="preservePlaylistToggle"
-                  data-action="change->youtube-player#togglePreservePlaylist" class="sr-only peer">
+                  data-action="change->youtube-player#togglePreservePlaylist" class="sr-only peer" checked>
                 <div
                   class="relative w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600">
                 </div>
@@ -263,6 +263,11 @@
             <h2 class="text-xl font-semibold">Queue</h2>
             <div class="flex items-center space-x-2">
               <span data-youtube-player-target="queueCount" class="text-sm text-gray-400">0 items</span>
+              <button data-action="click->youtube-player#sharePlaylist"
+                class="text-twitch hover:text-purple-400 text-sm flex items-center space-x-1">
+                <i class="icon-share-2 w-4 h-4"></i>
+                <span>Share</span>
+              </button>
               <button data-action="click->youtube-player#clearQueue" class="text-red-400 hover:text-red-300 text-sm">
                 Clear
               </button>

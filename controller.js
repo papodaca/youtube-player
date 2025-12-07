@@ -12,7 +12,7 @@ export default class extends Controller {
   static values = {
     channelName: String,
     autoplay: { type: Boolean, default: false },
-    preservePlaylist: { type: Boolean, default: false }
+    preservePlaylist: { type: Boolean, default: true }
   }
 
   connect() {
@@ -30,6 +30,9 @@ export default class extends Controller {
     this.setupPlayer()
     this.updateConnectionStatus()
     this.setupFullscreenListeners()
+
+    // Check for shared playlist in URL
+    this.loadSharedPlaylist()
 
     // Auto-reconnect if channel was previously connected
     if (this.channelNameValue && this.channelNameValue !== 'your_channel_name') {
@@ -524,6 +527,61 @@ export default class extends Controller {
     this.showSuccess('YouTube video added to queue!')
   }
 
+  sharePlaylist() {
+    if (this.queue.length === 0) {
+      this.showError('Queue is empty - nothing to share!')
+      return
+    }
+
+    // Extract video IDs from queue
+    const videoIds = this.queue.map(item => item.videoId)
+    const shareUrl = `${window.location.origin}${window.location.pathname}?list=${videoIds.join(',')}`
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      this.showSuccess('Playlist URL copied to clipboard!')
+    }).catch(() => {
+      // Fallback: create temporary input to copy
+      const tempInput = document.createElement('input')
+      tempInput.value = shareUrl
+      document.body.appendChild(tempInput)
+      tempInput.select()
+      document.execCommand('copy')
+      document.body.removeChild(tempInput)
+      this.showSuccess('Playlist URL copied to clipboard!')
+    })
+  }
+
+  async loadSharedPlaylist() {
+    const urlParams = new URLSearchParams(window.location.search)
+    const listParam = urlParams.get('list')
+
+    if (!listParam) return
+
+    try {
+      const videoIds = listParam.split(',').filter(id => id.trim())
+
+      if (videoIds.length === 0) return
+
+      // Clear existing queue
+      this.queue = []
+
+      // Add each video to queue
+      for (const videoId of videoIds) {
+        await this.addToQueue(videoId.trim(), 'Shared Playlist')
+      }
+
+      // Clean up URL to remove the list parameter
+      const cleanUrl = `${window.location.origin}${window.location.pathname}`
+      window.history.replaceState({}, '', cleanUrl)
+
+      this.showSuccess(`Loaded ${videoIds.length} videos from shared playlist!`)
+    } catch (error) {
+      console.error('Failed to load shared playlist:', error)
+      this.showError('Failed to load shared playlist')
+    }
+  }
+
   setupFullscreenListeners() {
     document.addEventListener('fullscreenchange', () => {
       const playerContainer = document.getElementById('player')
@@ -864,6 +922,9 @@ export default class extends Controller {
         if (typeof state.preservePlaylist === 'boolean') {
           this.preservePlaylist = state.preservePlaylist
           this.preservePlaylistToggleTarget.checked = state.preservePlaylist
+        } else {
+          // Set toggle to match default value when no saved state exists
+          this.preservePlaylistToggleTarget.checked = this.preservePlaylistValue
         }
 
         // Restore channel name
