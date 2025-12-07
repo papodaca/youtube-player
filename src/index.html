@@ -6,97 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Twitch YouTube Player</title>
   <script src="https://www.youtube.com/iframe_api"></script>
-  <link href="https://cdn.jsdelivr.net/npm/lucide-static@0.556.0/font/lucide.min.css" rel="stylesheet">
-  <script type="importmap">
-    {"imports": {
-      "@hotwired/stimulus": "https://cdn.jsdelivr.net/npm/@hotwired/stimulus@3.2.2/+esm",
-      "tmi.js": "https://cdn.jsdelivr.net/npm/tmi.js@1.8.5/+esm"
-    }}</script>
   <script src="./app.js" type="module"></script>
-  <link href="./app.dist.css" rel="stylesheet">
-  <style>
-    .fullscreen-mode {
-      width: 100vw !important;
-      height: 100vh !important;
-      max-width: none !important;
-      max-height: none !important;
-      aspect-ratio: unset !important;
-    }
-
-    /* Hide scrollbar in fullscreen */
-    :fullscreen {
-      overflow: hidden;
-    }
-
-    /* Webkit browsers */
-    ::-webkit-scrollbar {
-      width: 8px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: #1f2937;
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: #4b5563;
-      border-radius: 4px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: #6b7280;
-    }
-
-    /* Progress bar styling */
-    .slider {
-      -webkit-appearance: none;
-      appearance: none;
-      cursor: pointer;
-    }
-
-    .slider::-webkit-slider-track {
-      background: #374151;
-      height: 8px;
-      border-radius: 4px;
-    }
-
-    .slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      background: #9146FF;
-      height: 16px;
-      width: 16px;
-      border-radius: 50%;
-      margin-top: -4px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .slider::-webkit-slider-thumb:hover {
-      background: #b374ff;
-      transform: scale(1.2);
-    }
-
-    .slider::-moz-range-track {
-      background: #374151;
-      height: 8px;
-      border-radius: 4px;
-    }
-
-    .slider::-moz-range-thumb {
-      background: #9146FF;
-      height: 16px;
-      width: 16px;
-      border-radius: 50%;
-      border: none;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .slider::-moz-range-thumb:hover {
-      background: #b374ff;
-      transform: scale(1.2);
-    }
-  </style>
+  <link href="./app.css" rel="stylesheet">
 </head>
 
 <body class="bg-gray-900 text-white min-h-screen">
@@ -245,7 +156,7 @@
           <div data-youtube-player-target="currentVideoInfo" class="bg-gray-700 rounded-lg p-4 mb-4 hidden">
             <h3 class="font-semibold mb-2">Now Playing</h3>
             <div class="flex items-center space-x-4">
-              <img data-youtube-player-target="currentThumbnail" src="" alt="" class="w-24 h-18 rounded">
+              <img data-youtube-player-target="currentThumbnail" class="w-24 h-18 rounded">
               <div>
                 <h4 data-youtube-player-target="currentTitle" class="font-medium"></h4>
                 <p data-youtube-player-target="currentChannel" class="text-sm text-gray-400"></p>

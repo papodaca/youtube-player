@@ -1,3 +1,5 @@
+@import "./player.css";
+@import "lucide-static/font/lucide.css";
 @import "tailwindcss";
 
 @theme {
