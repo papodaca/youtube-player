@@ -236,7 +236,7 @@ export default class extends Controller {
             <h4 class="font-medium text-sm truncate ${isCurrentVideo ? 'text-green-400' : ''}">${item.title}${startTimeText}</h4>
             <p class="text-xs text-gray-400">${item.channel}</p>
             ${item.username ? `<p class="text-xs text-twitch">Added by ${item.username}</p>` : ''}
-            ${isCurrentVideo ? '<p class="text-xs text-green-400">▶ Currently Playing</p>' : ''}
+            ${isCurrentVideo ? `<p class="text-xs text-green-400"><img class="w-[16px] inline-block" src="${this.getFaviconUrl()}">&nbsp;Currently Playing</p>` : ''}
           </div>
           <button data-action="click->youtube-player#removeFromQueue"
                   data-index="${index}"
@@ -254,6 +254,11 @@ export default class extends Controller {
       item.addEventListener('dragover', this.dragOver.bind(this))
       item.addEventListener('drop', this.drop.bind(this))
     })
+  }
+
+  getFaviconUrl() {
+    const faviconLink = document.querySelector('link[rel="icon"]') || document.querySelector('link[rel="shortcut icon"]');
+    return faviconLink ? faviconLink.href : './favicon.png';
   }
 
   playNext(manual = false) {
