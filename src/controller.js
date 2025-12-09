@@ -33,8 +33,8 @@ export default class extends Controller {
     this.setupFullscreenListeners()
     this.setupKeyboardListeners()
 
-    // Check for shared playlist in URL
-    this.loadSharedPlaylist()
+    // Check for URL parameters
+    this.loadUrlParameters()
 
     // Auto-reconnect if channel was previously connected
     if (this.channelNameValue && this.channelNameValue !== 'your_channel_name') {
@@ -259,7 +259,7 @@ export default class extends Controller {
   }
 
   getFaviconUrl() {
-    if (faviconLink !== null) {
+    if (this.faviconLink !== null) {
       return this.faviconLink;
     }
     const faviconLink = document.querySelector('link[rel="icon"]') || document.querySelector('link[rel="shortcut icon"]');
@@ -598,6 +598,25 @@ export default class extends Controller {
     }
   }
 
+  loadUrlParameters() {
+    const urlParams = new URLSearchParams(window.location.search)
+
+    // Load shared playlist if present
+    this.loadSharedPlaylist()
+
+    // Load channel from URL parameter
+    const channelParam = urlParams.get('channel')
+    if (channelParam) {
+      this.channelNameValue = channelParam
+      this.channelInputTarget.value = channelParam
+      this.connectToChannel()
+
+      // Clean up URL to remove the channel parameter
+      const cleanUrl = `${window.location.origin}${window.location.pathname}${urlParams.has('list') ? '?list=' + urlParams.get('list') : ''}`
+      window.history.replaceState({}, '', cleanUrl)
+    }
+  }
+
   async loadSharedPlaylist() {
     const urlParams = new URLSearchParams(window.location.search)
     const listParam = urlParams.get('list')
@@ -616,10 +635,6 @@ export default class extends Controller {
       for (const videoId of videoIds) {
         await this.addToQueue(videoId.trim(), 'Shared Playlist')
       }
-
-      // Clean up URL to remove the list parameter
-      const cleanUrl = `${window.location.origin}${window.location.pathname}`
-      window.history.replaceState({}, '', cleanUrl)
 
       this.showSuccess(`Loaded ${videoIds.length} videos from shared playlist!`)
     } catch (error) {
