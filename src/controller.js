@@ -26,10 +26,12 @@ export default class extends Controller {
     this.currentVideoIndex = null
     this.isMuted = false
     this.previousVolume = 50
+    this.faviconLink = null
     this.loadState()
     this.setupPlayer()
     this.updateConnectionStatus()
     this.setupFullscreenListeners()
+    this.setupKeyboardListeners()
 
     // Check for shared playlist in URL
     this.loadSharedPlaylist()
@@ -257,8 +259,12 @@ export default class extends Controller {
   }
 
   getFaviconUrl() {
+    if (faviconLink !== null) {
+      return this.faviconLink;
+    }
     const faviconLink = document.querySelector('link[rel="icon"]') || document.querySelector('link[rel="shortcut icon"]');
-    return faviconLink ? faviconLink.href : './favicon.png';
+    this.faviconLink = faviconLink ? faviconLink.href : './favicon.png';
+    return this.faviconLink;
   }
 
   playNext(manual = false) {
@@ -557,6 +563,41 @@ export default class extends Controller {
     })
   }
 
+  createYoutubePlaylist() {
+    if (this.queue.length === 0) {
+      this.showError('Queue is empty - nothing to create a playlist with!')
+      return
+    }
+
+    // Create a comma-separated list of video IDs
+    const videoIds = this.queue.map(item => item.videoId).join(',')
+
+    // Create YouTube playlist creation URL with videos
+    // This will open YouTube's playlist creation interface with the videos pre-loaded
+    const playlistUrl = `https://www.youtube.com/watch_videos?video_ids=${videoIds}`
+
+    // Open in a new tab
+    const newWindow = window.open(playlistUrl, '_blank')
+
+    if (newWindow) {
+      this.showSuccess('Opened YouTube playlist creation in new tab!')
+    } else {
+      // If popup is blocked, copy the URL instead
+      navigator.clipboard.writeText(playlistUrl).then(() => {
+        this.showSuccess('Playlist URL copied to clipboard! (Pop-up was blocked)')
+      }).catch(() => {
+        // Fallback: create temporary input to copy
+        const tempInput = document.createElement('input')
+        tempInput.value = playlistUrl
+        document.body.appendChild(tempInput)
+        tempInput.select()
+        document.execCommand('copy')
+        document.body.removeChild(tempInput)
+        this.showSuccess('Playlist URL copied to clipboard! (Pop-up was blocked)')
+      })
+    }
+  }
+
   async loadSharedPlaylist() {
     const urlParams = new URLSearchParams(window.location.search)
     const listParam = urlParams.get('list')
@@ -613,6 +654,17 @@ export default class extends Controller {
       const playerContainer = document.getElementById('player')
       if (!document.msFullscreenElement) {
         playerContainer.classList.remove('fullscreen-mode')
+      }
+    })
+  }
+
+  setupKeyboardListeners() {
+    document.addEventListener('keydown', (event) => {
+      // Check if spacebar was pressed and not in an input field
+      if (event.code === 'Space' &&
+        !event.target.matches('input[type="text"], input[type="url"], textarea')) {
+        event.preventDefault() // Prevent page scroll
+        this.togglePlay()
       }
     })
   }
