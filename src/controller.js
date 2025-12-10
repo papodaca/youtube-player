@@ -358,6 +358,13 @@ export default class extends Controller {
   }
 
   reset() {
+    // Show confirmation dialog
+    const confirmed = confirm('Are you sure you want to reset the player? This will:\n\n• Clear the entire queue\n• Stop the current video\n• Reset all player settings\n• Disconnect from Twitch chat\n\nThis action cannot be undone.')
+
+    if (!confirmed) {
+      return // User cancelled the reset
+    }
+
     // Destroy and recreate the YouTube player
     if (this.player) {
       this.player.destroy()
@@ -367,6 +374,7 @@ export default class extends Controller {
     // Clear queue and current video
     this.queue = []
     this.currentVideo = null
+    this.currentVideoIndex = null
 
     // Update UI
     this.updateQueueDisplay()
@@ -382,6 +390,13 @@ export default class extends Controller {
     }
     if (this.durationTarget) {
       this.durationTarget.textContent = '0:00'
+    }
+
+    // Disconnect from Twitch if connected
+    if (this.client && this.isConnected) {
+      this.client.disconnect()
+      this.isConnected = false
+      this.updateConnectionStatus()
     }
 
     // Recreate the player
