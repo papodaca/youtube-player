@@ -234,7 +234,10 @@ export default class extends Controller {
              title="Open video in new tab">
             <img src="${item.thumbnail}" alt="${item.title}" class="w-full h-full object-cover">
           </a>
-          <div class="flex-1 min-w-0">
+          <div class="flex-1 min-w-0 cursor-pointer hover:text-gray-200 transition-colors"
+               data-action="click->youtube-player#playItem"
+               data-index="${index}"
+               title="Click to play this video">
             <h4 class="font-medium text-sm truncate ${isCurrentVideo ? 'text-green-400' : ''}">${item.title}${startTimeText}</h4>
             <p class="text-xs text-gray-400">${item.channel}</p>
             ${item.username ? `<p class="text-xs text-twitch">Added by ${item.username}</p>` : ''}
@@ -242,7 +245,7 @@ export default class extends Controller {
           </div>
           <button data-action="click->youtube-player#removeFromQueue"
                   data-index="${index}"
-                  class="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity">
+                  class="cursor-pointer opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-300 transition-opacity">
             <div class="icon-x w-5 h-5"></div>
           </button>
         </div>
@@ -325,6 +328,36 @@ export default class extends Controller {
     } else {
       // In normal mode, we don't have a history of played videos
       this.showInfo('Previous functionality only available in preserve playlist mode')
+    }
+  }
+
+  playItem(event) {
+    const index = parseInt(event.currentTarget.dataset.index)
+
+    if (index < 0 || index >= this.queue.length) {
+      return
+    }
+
+    // Update current video and index
+    this.currentVideo = this.queue[index]
+
+    if (this.preservePlaylist) {
+      // In preserve mode, update the current video index
+      this.currentVideoIndex = index
+    } else {
+      // In normal mode, remove all items before this one and set this as current
+      this.queue = this.queue.slice(index)
+      this.currentVideoIndex = null
+    }
+
+    // Update displays and save state
+    this.updateQueueDisplay()
+    this.updateCurrentVideoDisplay()
+    this.saveState()
+
+    // Load and play the selected video
+    if (this.player && this.player.loadVideoById) {
+      this.player.loadVideoById(this.currentVideo.videoId, this.currentVideo.startTime || 0)
     }
   }
 
@@ -529,9 +562,26 @@ export default class extends Controller {
   }
 
   clearQueue() {
+    if (this.queue.length === 0) {
+      this.showInfo('Queue is already empty')
+      return
+    }
+
+    // Show confirmation dialog
+    const confirmed = confirm(`Are you sure you want to clear the queue? This will remove ${this.queue.length} video${this.queue.length !== 1 ? 's' : ''} from the queue.\n\nThis action cannot be undone.`)
+
+    if (!confirmed) {
+      return // User cancelled the clear
+    }
+
     this.queue = []
+    this.currentVideo = null
+    this.currentVideoIndex = null
+    this.currentVideoInfoTarget.classList.add('hidden')
     this.updateQueueDisplay()
     this.saveState()
+
+    this.showSuccess(`Cleared ${this.queue.length} video${this.queue.length !== 1 ? 's' : ''} from queue`)
   }
 
   addYoutubeLink() {

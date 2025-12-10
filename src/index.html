@@ -36,7 +36,7 @@
                 placeholder="Enter channel name">
             </div>
             <button data-action="click->youtube-player#connectToChannel"
-              class="bg-twitch hover:bg-purple-700 text-white px-4 py-2 rounded-md transition-colors mt-6">
+              class="cursor-pointer bg-twitch hover:bg-purple-700 text-white px-4 py-2 rounded-md transition-colors mt-6">
               Connect
             </button>
             <div>
@@ -46,7 +46,7 @@
                   class="bg-gray-700 text-white px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-youtube"
                   placeholder="youtube.com/watch?v=...">
                 <button data-action="click->youtube-player#addYoutubeLink"
-                  class="bg-youtube hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors">
+                  class="cursor-pointer bg-youtube hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors">
                   Add
                 </button>
               </div>
@@ -54,9 +54,9 @@
           </div>
           <div class="flex items-center space-x-4">
             <button data-action="click->youtube-player#reset"
-              class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors">
+              class="cursor-pointer bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors">
               <div class="flex items-center space-x-2">
-                <i class="icon-rotate-ccw"></i>
+                <i class="icon-ban"></i>
                 <span>Reset</span>
               </div>
             </button>
@@ -175,22 +175,23 @@
             <div class="flex items-center space-x-2">
               <span data-youtube-player-target="queueCount" class="text-sm text-gray-400">0 items</span>
               <button data-action="click->youtube-player#createYoutubePlaylist"
-                class="text-youtube hover:text-red-400 text-sm flex items-center space-x-1">
+                class="text-youtube cursor-pointer hover:text-red-400 text-sm flex items-center space-x-1">
                 <i class="icon-list-plus w-4 h-4"></i>
                 <span>Create Playlist</span>
               </button>
               <button data-action="click->youtube-player#sharePlaylist"
-                class="text-twitch hover:text-purple-400 text-sm flex items-center space-x-1">
+                class="text-twitch cursor-pointer hover:text-purple-400 text-sm flex items-center space-x-1">
                 <i class="icon-share-2 w-4 h-4"></i>
                 <span>Share</span>
               </button>
-              <button data-action="click->youtube-player#clearQueue" class="text-red-400 hover:text-red-300 text-sm">
+              <button data-action="click->youtube-player#clearQueue"
+                class="text-red-400 cursor-pointer hover:text-red-300 text-sm">
                 Clear
               </button>
             </div>
           </div>
 
-          <div data-youtube-player-target="queueList" class="space-y-2 max-h-96 overflow-y-auto">
+          <div data-youtube-player-target="queueList" class="space-y-2 max-h-187 overflow-y-auto">
             <!-- Queue items will be inserted here -->
           </div>
         </div>
