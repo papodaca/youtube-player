@@ -6,13 +6,15 @@ export default class extends Controller {
     "player", "queueList", "channelInput", "connectionStatus",
     "playPauseIcon", "volumeSlider", "volumeIcon", "autoplayToggle", "currentVideoInfo",
     "currentThumbnail", "currentTitle", "currentChannel", "queueCount",
-    "progressBar", "currentTime", "duration", "youtubeLinkInput", "queueItem", "preservePlaylistToggle"
+    "progressBar", "currentTime", "duration", "youtubeLinkInput", "queueItem", "preservePlaylistToggle",
+    "autoAddToggle"
   ]
 
   static values = {
     channelName: String,
     autoplay: { type: Boolean, default: false },
-    preservePlaylist: { type: Boolean, default: true }
+    preservePlaylist: { type: Boolean, default: true },
+    autoAdd: { type: Boolean, default: true }
   }
 
   connect() {
@@ -22,6 +24,7 @@ export default class extends Controller {
     this.client = null
     this.autoplay = this.autoplayValue
     this.preservePlaylist = this.preservePlaylistValue
+    this.autoAdd = this.autoAddValue
     this.progressInterval = null
     this.currentVideoIndex = null
     this.isMuted = false
@@ -153,7 +156,7 @@ export default class extends Controller {
   processMessage(message, tags) {
     const youtubeUrl = this.extractYoutubeUrl(message)
 
-    if (youtubeUrl) {
+    if (youtubeUrl && this.autoAdd) {
       this.addToQueueByUrl(youtubeUrl, tags.username)
     }
   }
@@ -528,6 +531,10 @@ export default class extends Controller {
     }
 
     this.updateQueueDisplay()
+  }
+
+  toggleAutoAdd() {
+    this.autoAdd = this.autoAddToggleTarget.checked
   }
 
   updateCurrentVideoDisplay() {

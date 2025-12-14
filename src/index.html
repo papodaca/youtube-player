@@ -41,7 +41,7 @@
             </button>
             <div>
               <label class="block text-sm font-medium text-gray-300 mb-1">Add YouTube Link</label>
-              <div class="flex space-x-2">
+              <div class="flex space-x-2 items-center">
                 <input type="text" data-youtube-player-target="youtubeLinkInput"
                   class="bg-gray-700 text-white px-3 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-youtube"
                   placeholder="youtube.com/watch?v=...">
@@ -49,6 +49,14 @@
                   class="cursor-pointer bg-youtube hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors">
                   Add
                 </button>
+                <label class="flex items-center space-x-2 cursor-pointer ml-2">
+                  <input type="checkbox" data-youtube-player-target="autoAddToggle"
+                    data-action="change->youtube-player#toggleAutoAdd" class="sr-only peer" checked>
+                  <div
+                    class="relative w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                  </div>
+                  <span class="text-sm text-gray-300 whitespace-nowrap">Auto Add from Twitch chat</span>
+                </label>
               </div>
             </div>
           </div>
